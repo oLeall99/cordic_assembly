@@ -1,50 +1,159 @@
 ORG 0000H   ; Início do programa
 
-; === INÍCIO DAS VARIÁVEIS NA RAM INTERNA ===
-; Mapeando diretamente nos endereços da RAM interna do 8051 (128 bytes)
+; === VARIÁVEIS NA RAM INTERNA ===
+COS0    EQU 30H    ; Cos(θ) LSB
+COS1    EQU 31H    ; Cos(θ) MSB
+SEN0    EQU 40H    ; Sen(θ) LSB
+SEN1    EQU 41H    ; Sen(θ) MSB
 
-; X e Y (valores 16-bit)
-X0      EQU 30H
-X1      EQU 31H
-Y0      EQU 32H
-Y1      EQU 33H
+X0_TMP  EQU 32H
+X1_TMP  EQU 33H
+Y0_TMP  EQU 34H
+Y1_TMP  EQU 35H
+Z0      EQU 36H
+Z1      EQU 37H
+E0      EQU 38H
+E1      EQU 39H
+XTMP0   EQU 3AH
+XTMP1   EQU 3BH
+YTMP0   EQU 3CH
+YTMP1   EQU 3DH
+K       EQU 3EH
 
-; Z (valor de entrada e controle angular)
-Z0      EQU 34H
-Z1      EQU 35H
+START:
+    ; === Entrada: Z = π/4 ≈ 0.7854 rad = 0x6477 (Q1.15) ===
+	MOV Z0, #077H
+	MOV Z1, #064H
+    ; === Inicialização ===
+    MOV X0_TMP, #0FH       ; X = K ≈ 0.607 * 32768 ≈ 0x4D0F
+    MOV X1_TMP, #4DH
+    MOV Y0_TMP, #00H
+    MOV Y1_TMP, #00H
+    MOV K, #00H
 
-; ε_k temporário
-E0      EQU 36H
-E1      EQU 37H
+CORDIC_LOOP:
+    ; Acessar ε_k da tabela
+    MOV DPTR, #0100H
+    MOV A, K
+    RL A     ; K * 2 (2 bytes por entrada)
+    MOVC A, @A+DPTR
+    MOV E0, A
+    INC DPTR
+    MOVC A, @A+DPTR
+    MOV E1, A
 
-; Temporários para X e Y durante shift
-XTMP0   EQU 38H
-XTMP1   EQU 39H
-YTMP0   EQU 3AH
-YTMP1   EQU 3BH
+    ; Verifica sinal de Z1 (bit 7)
+    MOV A, Z1
+    JNB ACC.7, D_POS
 
-; Contador de iterações (k)
-K       EQU 3CH
+D_NEG:
+    ; Z = Z + ε
+    MOV A, Z0
+    ADD A, E0
+    MOV Z0, A
+    MOV A, Z1
+    ADDC A, E1
+    MOV Z1, A
 
-; Ponteiro da tabela (em DPTR)
-; Será usado no MOVC A,@A+DPTR
+    ; Copia Y para YTMP
+    MOV A, Y1_TMP
+    MOV YTMP1, A
+    MOV A, Y0_TMP
+    MOV YTMP0, A
 
-; === INÍCIO DA TABELA EM ROM ===
+    ; YTMP >> K
+    MOV R0, K
+SHIFT_Y:
+    JZ SHIFT_DONE_Y
+    CLR C
+    MOV A, YTMP1
+    RRC A
+    MOV YTMP1, A
+    MOV A, YTMP0
+    RRC A
+    MOV YTMP0, A
+    DJNZ R0, SHIFT_Y
+SHIFT_DONE_Y:
+
+    ; X = X + YTMP
+    MOV A, X0_TMP
+    ADD A, YTMP0
+    MOV X0_TMP, A
+    MOV A, X1_TMP
+    ADDC A, YTMP1
+    MOV X1_TMP, A
+
+
+D_POS:
+    ; Z = Z - ε
+    MOV A, Z0
+    CLR C
+    SUBB A, E0
+    MOV Z0, A
+    MOV A, Z1
+    SUBB A, E1
+    MOV Z1, A
+
+    ; Copia X para XTMP
+    MOV A, X1_TMP
+    MOV XTMP1, A
+    MOV A, X0_TMP
+    MOV XTMP0, A
+
+    ; XTMP >> K
+    MOV R0, K
+SHIFT_X:
+    JZ SHIFT_DONE_X
+    CLR C
+    MOV A, XTMP1
+    RRC A
+    MOV XTMP1, A
+    MOV A, XTMP0
+    RRC A
+    MOV XTMP0, A
+    DJNZ R0, SHIFT_X
+SHIFT_DONE_X:
+
+    ; Y = Y + XTMP
+    MOV A, Y0_TMP
+    ADD A, XTMP0
+    MOV Y0_TMP, A
+    MOV A, Y1_TMP
+    ADDC A, XTMP1
+    MOV Y1_TMP, A
+
+NEXT_ITER:
+    INC K
+    MOV A, K
+    CJNE A, #0EH, CORDIC_LOOP
+
+    ; === Armazena resultados ===
+    MOV A, X0_TMP
+    MOV COS0, A
+    MOV A, X1_TMP
+    MOV COS1, A
+
+    MOV A, Y0_TMP
+    MOV SEN0, A
+    MOV A, Y1_TMP
+    MOV SEN1, A
+
+    SJMP $  ; Loop infinito para parar execução
+
+; === TABELA DE ATAN(2^-k), Q1.15, little endian ===
 ORG 0100H
 ATAN_TABLE:
-; Valores Q1.15 de arctan(2^-k), little endian (LSB primeiro)
-; k = 0 até 13
-DB 078H,064H  ; 0.785398163 = 0x6478
-DB 048H,03BH  ; 0.463647609 = 0x3B48
-DB 05BH,01FH  ; 0.244978663 = 0x1F5B
-DB 0EAH,0FH   ; 0.124354995 = 0x0FEA
-DB 0FDH,07H   ; 0.062418810 = 0x07FD
-DB 0FFH,03H   ; 0.031239833 = 0x03FF
-DB 0FFH,01H   ; 0.015623729 = 0x01FF
-DB 0FFH,00H   ; 0.007812341 = 0x00FF
-DB 07FH,00H   ; 0.003906230 = 0x007F
-DB 040H,00H   ; 0.001953123 = 0x0040
-DB 020H,00H   ; 0.000976562 = 0x0020
-DB 010H,00H   ; 0.000488281 = 0x0010
-DB 008H,00H   ; 0.000244141 = 0x0008
-DB 004H,00H   ; 0.000122070 = 0x0004
+    DB 078H,064H  ; atan(2^-0)
+    DB 048H,03BH  ; atan(2^-1)
+    DB 05BH,01FH
+    DB 0EAH,0FH
+    DB 0FDH,07H
+    DB 0FFH,03H
+    DB 0FFH,01H
+    DB 0FFH,00H
+    DB 07FH,00H
+    DB 040H,00H
+    DB 020H,00H
+    DB 010H,00H
+    DB 008H,00H
+    DB 004H,00H
