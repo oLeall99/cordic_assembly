@@ -1,38 +1,38 @@
-ORG 0000H   ; Início do programa
+ORG 0000H   ; In�cio do programa
 
-; === VARIÁVEIS NA RAM INTERNA ===
-COS0    EQU 30H    ; Cos(θ) LSB
-COS1    EQU 31H    ; Cos(θ) MSB
-SEN0    EQU 40H    ; Sen(θ) LSB
-SEN1    EQU 41H    ; Sen(θ) MSB
+; === VARI�VEIS ===
+COS0    EQU 30H    ; Cos(?) LSB
+COS1    EQU 31H    ; Cos(?) MSB
+SEN0    EQU 40H    ; Sen(?) LSB
+SEN1    EQU 41H    ; Sen(?) MSB
 
 X0_TMP  EQU 32H
 X1_TMP  EQU 33H
-Y0_TMP  EQU 34H
-Y1_TMP  EQU 35H
-Z0      EQU 36H
-Z1      EQU 37H
+Y0_TMP  EQU 42H
+Y1_TMP  EQU 43H
+Z0      EQU 50H
+Z1      EQU 51H
 E0      EQU 38H
 E1      EQU 39H
 XTMP0   EQU 3AH
 XTMP1   EQU 3BH
-YTMP0   EQU 3CH
-YTMP1   EQU 3DH
+YTMP0   EQU 4AH
+YTMP1   EQU 4BH
 K       EQU 3EH
 
 START:
-    ; === Entrada: Z = π/4 ≈ 0.7854 rad = 0x6477 (Q1.15) ===
+    ; === Entrada: Z = ?/4 ? 0.7854 rad = 0x6477 (Q1.15) ===
 	MOV Z0, #077H
 	MOV Z1, #064H
-    ; === Inicialização ===
-    MOV X0_TMP, #0FH       ; X = K ≈ 0.607 * 32768 ≈ 0x4D0F
+    ; === Inicializa��o ===
+    MOV X0_TMP, #0FH       ; X = K ? 0.607 * 32768 ? 0x4D0F
     MOV X1_TMP, #4DH
     MOV Y0_TMP, #00H
     MOV Y1_TMP, #00H
     MOV K, #00H
 
 CORDIC_LOOP:
-    ; Acessar ε_k da tabela
+    ; Acessar ?_k da tabela
     MOV DPTR, #0100H
     MOV A, K
     RL A     ; K * 2 (2 bytes por entrada)
@@ -43,11 +43,11 @@ CORDIC_LOOP:
     MOV E1, A
 
     ; Verifica sinal de Z1 (bit 7)
-    MOV A, Z1
+     MOV A, Z1
     JNB ACC.7, D_POS
 
 D_NEG:
-    ; Z = Z + ε
+    ; Z = Z + ?
     MOV A, Z0
     ADD A, E0
     MOV Z0, A
@@ -83,9 +83,10 @@ SHIFT_DONE_Y:
     ADDC A, YTMP1
     MOV X1_TMP, A
 
+    SJMP NEXT_ITER  ; <- Pula D_POS
 
 D_POS:
-    ; Z = Z - ε
+    ; Z = Z - ?
     MOV A, Z0
     CLR C
     SUBB A, E0
@@ -122,6 +123,7 @@ SHIFT_DONE_X:
     ADDC A, XTMP1
     MOV Y1_TMP, A
 
+
 NEXT_ITER:
     INC K
     MOV A, K
@@ -138,7 +140,7 @@ NEXT_ITER:
     MOV A, Y1_TMP
     MOV SEN1, A
 
-    SJMP $  ; Loop infinito para parar execução
+    SJMP $  ; Loop infinito para parar execu��o
 
 ; === TABELA DE ATAN(2^-k), Q1.15, little endian ===
 ORG 0100H
