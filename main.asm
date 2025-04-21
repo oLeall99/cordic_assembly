@@ -17,3 +17,101 @@ Z1     EQU    2Eh
 E0     EQU    6Eh
 E1     EQU    6Fh
 K       EQU    50h
+
+E_00: 
+    DB 22H, 19H, 0D6H, 0EH, 0D7H, 07H, 0FBH, 03H
+    DB 0FFH, 01H, 00H, 01H, 80H, 00H, 40H, 00H
+    DB 20H, 00H, 10H, 00H, 08H, 00H, 04H, 00H
+    DB 02H, 00H, 01H, 00H
+
+ORG 0x0000
+
+START:
+
+    ; Inicializa X = 0x136F (X1:X0), Y = 0x0000
+    MOV X0, #6FH         ; X LSB
+    MOV X1, #13H         ; X MSB
+    MOV Y0, #00H         ; Y LSB
+    MOV Y1, #00H         ; Y MSB
+
+    MOV R2, #00H         ; Inicializa o indicador de sinal
+
+    CLR C                ; Limpa o carry (borrow) para a subtracao com SUBB
+
+    ; Subtrai PI / 2 ( PI / 2 = 0x3244) do angulo armazenado em ANGLE0 e ANGLE1
+    MOV A, ANGLE0        ; Coloca o byte menos significativo do angulo em A 
+    SUBB A, #44H         ; Subtrai o LSB de PI/2
+    MOV Z0, A            ; Salva o resultado no Z0
+
+    MOV A, ANGLE1        ; Coloca o byte mais significativo do angulo em A 
+    SUBB A, #32H         ; Subtrai o MSB de PI/2 com carry
+    MOV Z1, A            ; Salva o resultado no Z1
+
+    JC ADD_PI_DIV_2      ; Se houve borrow (JC = Jump if Carry), entao angulo < PI / 2
+
+    ; Se o angulo estiver entre PI/2 e PI:
+    MOV  R2, #02H        ; Seno positivo, cossento negativo
+
+    MOV A, Z0
+    SUBB A, #44H         ; Subtrai LSB de PI / 2
+    MOV Z0, A
+
+    MOV A, Z1
+    SUBB A, #32H         ; Subtrai MSB de PI / 2
+    MOV Z1, A
+    JC TWOS              ; Se houver carry, está no 2º quadrante (PI/2 a PI)
+
+    ; Caso Contrário, continua
+    MOV R2, #3           ; Seno negativo, cosseno negativo
+
+    MOV A, Z0
+    SUBB A, #44H         ; Subtrai LSB de PI / 2
+    MOV Z0, A
+
+    MOV A, Z1
+    SUBB A, #32H         ; Subtrai MSB de PI / 2
+    MOV Z1, A
+    JC ADD_PI_DIV_2      ; Se houve carry, está no 3º quadrante (PI a 3PI / 2)
+
+    ; Ultimo caso: angulo esta entre 3PI / 2 e 2PI
+    MOV R2, #1          ; Seno negativo, cosseno positivo
+
+    MOV A, Z0
+    SUBB A, #44H         ; Subtrai LSB de PI / 2
+    MOV Z0, A
+
+    MOV A, Z1
+    SUBB A, #32H         ; Subtrai MSB de PI / 2
+    MOV Z1, A
+
+
+TWOS:
+    MOV A, Z0            ; Pega o LSB de Z
+    CPL A                ; Complementa os bits
+    ADD A, #1            ; Soma 1 -> complemnto de dois
+    MOV Z0, A            ; Salva de volta no Z0
+
+    MOV A, Z1            ; Pega o MSB de Z
+    CPL A                ; Complementa os bits
+    ADDC A, #0           ; Soma com carry da operação anterior
+    MOV Z1, A            ; Salva no Z1
+
+    AJMP CORDIC_ALGO
+
+
+ADD_PI_DIV_2:
+    MOV A, Z0         ; Carrega o LSB de Z
+    ADD A, #44H       ; Soma o LSB de PI/2
+    MOV Z0, A         ; Salva de volta em Z0
+
+    MOV A, Z1         ; Carrega o MSB de Z
+    ADDC A, #32H      ; Soma com carry o MSB de PI/2
+    MOV Z1, A         ; Salva de volta em Z1
+
+    RET               ; Retorna (caso for subrotina), ou continue o fluxo
+
+
+CORDIC_ALGO: 
+    MOV DPTR, #E_00   ; Inicializa o DPTR com o endereço da tabela de arctg (E_00)
+    MOV R1, #0        ; Contador de iterações
+    MOV K, #0         ; Inicializa o indice de rotacao
