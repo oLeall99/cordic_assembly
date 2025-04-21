@@ -26,6 +26,7 @@ E_00:
 
 ORG 0x0000
 
+
 START:
 
     ; Inicializa X = 0x136F (X1:X0), Y = 0x0000
@@ -115,3 +116,81 @@ CORDIC_ALGO:
     MOV DPTR, #E_00   ; Inicializa o DPTR com o endereço da tabela de arctg (E_00)
     MOV R1, #0        ; Contador de iterações
     MOV K, #0         ; Inicializa o indice de rotacao
+
+
+CORDIC_LOOP:
+    ; Armazena temporariamente K em R0
+    MOV R0, K
+
+    ; Salva os valores temporarios de X e Y
+    MOV XTMP0, X0
+    MOV XTMP1, X1
+    MOV YTMP0, Y0
+    MOV YTMP1, Y1
+
+    ; Carrega constantes arctg(k) da tabela E_00
+    MOV A, #0
+    MOVC A, @A+DPTR
+    MOV E0, A
+    INC DPTR
+
+    MOV A, #0
+    MOVC A, @A+DPTR
+    MOV E1, A
+    INC DPTR
+
+    ; Prepara R3 com sinal de X, Y, Z (bit mais significativo)
+    MOV R3, #0
+    
+    MOV A, X1
+    ANL A, #80H         ; Pega bit de sinal de X
+    RL A 
+    ORL A, R3
+    MOV R3, A
+
+    MOV A, Y1
+    ANL A, #80H         ; Pega bit de sinal de Y
+    RL A
+    RL A
+    ORL A, R3
+    MOV R3, A
+
+    MOV A, Z1
+    ANL A, #80H         ; Pega bit de sinal de Z
+    RL A
+    RL A
+    RL A 
+    ORL A, R3
+    MOV R3, A
+
+    ; Incrementa o R3 para uso com DJNZ
+    INC R3
+
+    ; Verifica se Z é negativo (bit 7 setado)
+    MOV A, #80H
+    ANL A, Z1
+    JNZ ADD_Z  ; Se Z negativo, pula inversao de e
+
+    ; Inverte E para realizar a subtracao
+    MOV A, E0
+    CPL A
+    ADD A, #1
+    MOV E0, A
+
+    MOV A, E1
+    CPL A
+    ADDC A, #0
+    MOV E1, A
+
+
+ADD_Z:
+    ; Z = Z + E
+    MOV A, E0
+    ADD A, Z0
+    MOV Z0, A
+
+    MOV A, E1
+    ADDC A, Z1
+    MOV Z1, A
+
+    
