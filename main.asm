@@ -193,4 +193,225 @@ ADD_Z:
     ADDC A, Z1
     MOV Z1, A
 
+; ==========================================================
+; === Selecao de caso baseado no sinal de X, Y e Z no R# ===
+; ==========================================================
+
+CASE1: 
+    DJNZ R3, CASE2
+    ACALL SHIFT_XY
+    ACALL TWOS_Y_SHFTED
+    AJMP ADD_XY
+
+CASE2:
+    DJNZ R3, CASE3
+    ACALL ABS_X
+    ACALL SHIFT_XY
+    ACALL TWOS_X_SHFTED
+    ACALL TWOS_Y_SHFTED
+    AJMP ADD_XY
+
+CASE3:
+    DJNZ R3, CASE4
+    ACALL ABS_Y
+    ACALL SHIFT_XY
+    AJMP ADD_XY
+
+CASE4:
+    DJNZ R3, CASE5
+    ACALL ABS_X
+    ACALL ABS_Y
+    ACALL SHIFT_XY
+    ACALL TWOS_X_SHFTED
+    AJMP ADD_XY
+
+CASE5:
+    DJNZ R3, CASE6
+    ACALL SHIFT_XY
+    ACALL TWOS_X_SHFTED
+    AJMP ADD_XY
+
+CASE6:
+    DJNZ R3, CASE7
+    ACALL ABS_X
+    ACALL SHIFT_XY
+    AJMP ADD_XY
+
+CASE7:
+    DJNZ R3, CASE8
+    ACALL ABS_Y
+    ACALL SHIFT_XY
+    ACALL TWOS_X_SHFTED
+    ACALL TWOS_Y_SHFTED
+    AJMP ADD_XY
+
+CASE8:
+    ACALL ABS_X
+    ACALL ABS_Y
+    ACALL SHIFT_XY
+    ACALL TWOS_Y_SHFTED
+
+ADD_XY:
+    ; X = X + YTMP
+    MOV A, YTMP0
+    ADD A, X0
+    MOV X0, A
+
+    MOV A, YTMP1
+    ADDC A, X1
+    MOV X1, A
+
+    ; Y = Y + XTMP
+    MOV A, XTMP0
+    ADD A, Y0
+    MOV Y0, A
+
+    MOV A, XTMP1
+    ADDC A, Y1
+    MOV Y1, A
+
+    ; Incrementa k E R1
+    INC K
+    INC R1
+
+    ; Se R1 < 14 (0EH), continua no loop
+    CJNE R1, #0EH, CORDIC_LOOP
+
+    ; Caso Contrário, encerra
+    AJMP CORDIC_END
+
+LONG_JUMP:
+    LJMP CORDIC_LOOP
+
+CORDIC_END:
+    ; Verifica se a resposta precisa ser negada
+    MOV A, #03H     ; Deixa os sinais positivos se R2 = 0
+    ANL A, R2
+    JZ THE_END
+
+    MOV A, #02H     ; Pula negacao do cosseno se R2 = 1
+    ANL A, R2
+    JZ TWOS_Y
+
+TWOS_X:
+    MOV A, X0
+    CPL A
+    ADD A, #01H
+    MOV X0, A
+
+    MOV A, X1
+    CPL A
+    ADDC A, #00H
+    MOV X1, A
+
+TWOS_Y:
+    MOV A, #01H
+    ANL A, R2
+    JZ THE_END
+
+    MOV A, Y0
+    CPL A
+    ADD A, #01H
+    MOV Y0, A
+
+    MOV A, Y1
+    CPL A
+    ADDC A, #00H
+    MOV Y1, A
+
+THE_END:
+    AJMP THE_REAL_END
+
+; |-----------------------------|
+; |---> Subrotinas              |           
+; |-----------------------------|
+
+ABS_X:
+    CLR C
+    MOV A, XTMP0
+    SUBB A, #01H
+    MOV XTMP0, A
+    MOV A, XTMP1
+    SUBB A, #00H
+    MOV XTMP1, A
+    RET
+
+; ---
+
+ABS_Y:
+    CLR C
+    MOV A, YTMP0
+    SUBB A, #01H
+    MOV YTMP0, A
+    MOV A, YTMP1
+    SUBB A, #00H
+    MOV YTMP1, A
+    RET
+
+; --- 
+
+SHIFT_XY:
+    MOV A, R0
+    JZ END_SHIFT_XY      ; Se R0 = 0, termina
+    DEC R0               ; Decrementa contador de shift
+
+    ; shift XTMP 
+    CLR C
+    MOV A, XTMP1
+    RRC A
+    MOV XTMP1, A
+
+    MOV A, XTMP0
+    RRC A
+    MOV XTMP0, A 
     
+    ; shift YTMP
+    CLR C
+    MOV A, YTMP1
+    RRC A
+    MOV YTMP1, A 
+
+    MOV A, YTMP0
+    RRC A 
+    MOV YTMP0, A
+
+    AJMP SHIFT_XY
+
+END_SHIFT_XY:
+    RET
+
+; ---
+
+TWOS_X_SHFTED:
+    MOV A, XTMP0
+    CPL A 
+    ADD A, #01H
+    MOV XTMP0, A
+
+    MOV A, XTMP1
+    CPL A 
+    ADDC A, #00H
+    MOV XTMP1, A 
+    RET
+
+; ---
+
+TWOS_Y_SHFTED:
+    MOV A, YTMP0
+    CPL A 
+    ADD A, #01H
+    MOV YTMP0, A
+
+    MOV A, YTMP1
+    CPL A 
+    ADDC A, #00H
+    MOV YTMP1, A 
+    RET
+
+; ---
+THE_REAL_END:
+    MOV COS0, X0
+    MOV COS1, X1
+    MOV SEN0, Y0
+    MOV SEN1, Y1
+    END
