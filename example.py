@@ -1,7 +1,7 @@
 import math
 
 # Constantes
-ITERATIONS = 14
+ITERATIONS = 20
 K_GAIN = 0.607252935  # Valor do ganho CORDIC para 14 iterações
 FIXED_POINT_BITS = 15
 SCALE = 1 << FIXED_POINT_BITS

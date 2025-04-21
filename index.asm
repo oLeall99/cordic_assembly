@@ -1,6 +1,6 @@
-ORG 0000H   ; Início do programa
+ORG 0000H   ; Inï¿½cio do programa
 
-; === VARIÁVEIS ===
+; === VARIï¿½VEIS ===
 COS0    EQU 30H    ; Cos(?) LSB
 COS1    EQU 31H    ; Cos(?) MSB
 SEN0    EQU 40H    ; Sen(?) LSB
@@ -12,19 +12,19 @@ Y0_TMP  EQU 42H
 Y1_TMP  EQU 43H
 Z0      EQU 50H
 Z1      EQU 51H
-E0      EQU 38H
-E1      EQU 39H
-XTMP0   EQU 3AH
-XTMP1   EQU 3BH
-YTMP0   EQU 4AH
-YTMP1   EQU 4BH
-K       EQU 3EH
+E0      EQU 60H
+E1      EQU 61H
+XTMP0   EQU 28H
+XTMP1   EQU 38H
+YTMP0   EQU 48H
+YTMP1   EQU 58H
+K       EQU 20H
 
 START:
     ; === Entrada: Z = ?/4 ? 0.7854 rad = 0x6477 (Q1.15) ===
 	MOV Z0, #077H
 	MOV Z1, #064H
-    ; === Inicialização ===
+    ; === InicializaÃ§Ã£o ===
     MOV X0_TMP, #0FH       ; X = K ? 0.607 * 32768 ? 0x4D0F
     MOV X1_TMP, #4DH
     MOV Y0_TMP, #00H
@@ -140,7 +140,7 @@ NEXT_ITER:
     MOV A, Y1_TMP
     MOV SEN1, A
 
-    SJMP $  ; Loop infinito para parar execução
+    SJMP $  ; Loop infinito para parar execuï¿½ï¿½o
 
 ; === TABELA DE ATAN(2^-k), Q1.15, little endian ===
 ORG 0100H
