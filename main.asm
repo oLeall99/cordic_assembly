@@ -275,13 +275,13 @@ ADD_XY:
     INC R1
 
     ; Se R1 < 14 (0EH), continua no loop
-    CJNE R1, #0EH, CORDIC_LOOP
+    CJNE R1, #0EH, LONG_JUMP
 
     ; Caso Contrário, encerra
     AJMP CORDIC_END
 
 LONG_JUMP:
-    LJMP CORDIC_LOOP
+    AJMP CORDIC_LOOP
 
 CORDIC_END:
     ; Verifica se a resposta precisa ser negada
