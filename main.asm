@@ -27,18 +27,30 @@ E_00:
 ORG 0x0000
 
 ; constantes
-   PI2_LSB  EQU  044h   ; π/2 em Q3.13 LSB
+   PI2_LSB  EQU  042h   ; π/2 em Q3.13 LSB
    PI2_MSB  EQU  032h   ; π/2 em Q3.13 MSB
 
 
 START:
-
+    ; Inicializa valores de teste 
+	MOV ANGLE0, #8CH
+	MOV ANGLE1, #09H
+    
     ; Inicializa X = 0x136F (X1:X0), Y = 0x0000
-    MOV X0, #6FH         ; X LSB
-    MOV X1, #13H         ; X MSB
+    MOV X0, #0BAH         ; X LSB
+    MOV X1, #04DH         ; X MSB
     MOV Y0, #00H         ; Y LSB
     MOV Y1, #00H         ; Y MSB
     MOV R2, #00H         ; indicador de sinal
+    MOV XTMP0, #00H
+    MOV XTMP1, #00H
+    MOV YTMP0, #00H
+    MOV YTMP1, #00H
+    MOV Z0, #00H
+    MOV Z1, #00H
+    MOV E0, #00H
+    MOV E1, #00H
+    MOV K, #00H
 
     CLR C                ; Limpa o carry (borrow) para a subtracao com SUBB
 

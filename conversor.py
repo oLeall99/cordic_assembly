@@ -39,3 +39,6 @@ print(f"  Q3.13: {cos_q13:#06x} ({cos_q13})")
 print(f"\nBack to float from Q3.13:")
 print(f"  sin: {q13_to_float(sin_q13)}")
 print(f"  cos: {q13_to_float(cos_q13)}")
+
+print(f"\n\nSin: {q13_to_float(0x05ED)}")
+print(f"Cos: {q13_to_float(0x050A)}")
