@@ -4,19 +4,19 @@ SEN0   EQU    40h ; SEN LSB
 SEN1   EQU    41h ; SEN MSB
 ANGLE0 EQU    20h ; ANGLE LSB
 ANGLE1 EQU    21h ; ANGLE MSB
-XTMP0  EQU    3Ah
-XTMP1  EQU    3Bh
-YTMP0  EQU    4Ah
-YTMP1  EQU    4Bh
-X0     EQU    3Dh
-X1     EQU    3Eh
-Y0     EQU    4Dh
-Y1     EQU    4Eh
-Z0     EQU    2Dh
-Z1     EQU    2Eh
-E0     EQU    6Eh
-E1     EQU    6Fh
-K       EQU    50h
+XTMP0  EQU    3Ah ; Valores Temporarios para X LSB
+XTMP1  EQU    3Bh ; Valores Temporarios para X MSB
+YTMP0  EQU    4Ah ; Valores Temporarios para Y LSB
+YTMP1  EQU    4Bh ; Valores Temporarios para Y MSB
+X0     EQU    3Dh ; Valor X atual LSB
+X1     EQU    3Eh ; Valor X atual MSB
+Y0     EQU    4Dh ; Valor Y atual LSB
+Y1     EQU    4Eh ; Valor Y atual MSB
+Z0     EQU    2Dh ; Valor Z (angulo ajustado) LSB
+Z1     EQU    2Eh ; Valor Z (angulo ajustado) MSB
+E0     EQU    6Eh ; Valor da tabela arctg(k) atual LSB
+E1     EQU    6Fh ; Valor da tabela arctg(k) atual MSB
+K      EQU    50h ; Indice da iteracao atual 
 
 E_00: 
     DB 22H, 19H, 0D6H, 0EH, 0D7H, 07H, 0FBH, 03H
