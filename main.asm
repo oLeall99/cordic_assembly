@@ -26,6 +26,10 @@ E_00:
 
 ORG 0x0000
 
+; constantes
+   PI2_LSB  EQU  044h   ; π/2 em Q3.13 LSB
+   PI2_MSB  EQU  032h   ; π/2 em Q3.13 MSB
+
 
 START:
 
@@ -34,31 +38,29 @@ START:
     MOV X1, #13H         ; X MSB
     MOV Y0, #00H         ; Y LSB
     MOV Y1, #00H         ; Y MSB
-
-    MOV R2, #00H         ; Inicializa o indicador de sinal
+    MOV R2, #00H         ; indicador de sinal
 
     CLR C                ; Limpa o carry (borrow) para a subtracao com SUBB
 
     ; Subtrai PI / 2 ( PI / 2 = 0x3244) do angulo armazenado em ANGLE0 e ANGLE1
     MOV A, ANGLE0        ; Coloca o byte menos significativo do angulo em A 
-    SUBB A, #44H         ; Subtrai o LSB de PI/2
+    SUBB A, #PI2_LSB     ; Subtrai o LSB de PI/2
     MOV Z0, A            ; Salva o resultado no Z0
-
     MOV A, ANGLE1        ; Coloca o byte mais significativo do angulo em A 
-    SUBB A, #32H         ; Subtrai o MSB de PI/2 com carry
+    SUBB A, #PI2_MSB     ; Subtrai o MSB de PI/2 com carry
     MOV Z1, A            ; Salva o resultado no Z1
 
     JC ADD_PI_DIV_2      ; Se houve borrow (JC = Jump if Carry), entao angulo < PI / 2
 
     ; Se o angulo estiver entre PI/2 e PI:
-    MOV  R2, #02H        ; Seno positivo, cossento negativo
+    MOV  R2, #2        ; Seno positivo, cossento negativo
 
     MOV A, Z0
-    SUBB A, #44H         ; Subtrai LSB de PI / 2
+    SUBB A, #PI2_LSB     ; Subtrai LSB de PI / 2
     MOV Z0, A
 
     MOV A, Z1
-    SUBB A, #32H         ; Subtrai MSB de PI / 2
+    SUBB A, #PI2_MSB     ; Subtrai MSB de PI / 2
     MOV Z1, A
     JC TWOS              ; Se houver carry, está no 2º quadrante (PI/2 a PI)
 
@@ -66,11 +68,11 @@ START:
     MOV R2, #3           ; Seno negativo, cosseno negativo
 
     MOV A, Z0
-    SUBB A, #44H         ; Subtrai LSB de PI / 2
+    SUBB A, #PI2_LSB     ; Subtrai LSB de PI / 2
     MOV Z0, A
 
     MOV A, Z1
-    SUBB A, #32H         ; Subtrai MSB de PI / 2
+    SUBB A, #PI2_MSB     ; Subtrai MSB de PI / 2
     MOV Z1, A
     JC ADD_PI_DIV_2      ; Se houve carry, está no 3º quadrante (PI a 3PI / 2)
 
@@ -78,13 +80,12 @@ START:
     MOV R2, #1          ; Seno negativo, cosseno positivo
 
     MOV A, Z0
-    SUBB A, #44H         ; Subtrai LSB de PI / 2
+    SUBB A, #PI2_LSB    ; Subtrai LSB de PI / 2
     MOV Z0, A
 
     MOV A, Z1
-    SUBB A, #32H         ; Subtrai MSB de PI / 2
+    SUBB A, #PI2_MSB    ; Subtrai MSB de PI / 2
     MOV Z1, A
-
 
 TWOS:
     MOV A, Z0            ; Pega o LSB de Z
@@ -102,15 +103,14 @@ TWOS:
 
 ADD_PI_DIV_2:
     MOV A, Z0         ; Carrega o LSB de Z
-    ADD A, #44H       ; Soma o LSB de PI/2
+    ADD A, #PI2_LSB       ; Soma o LSB de PI/2
     MOV Z0, A         ; Salva de volta em Z0
 
     MOV A, Z1         ; Carrega o MSB de Z
-    ADDC A, #32H      ; Soma com carry o MSB de PI/2
+    ADDC A, #PI2_MSB     ; Soma com carry o MSB de PI/2
     MOV Z1, A         ; Salva de volta em Z1
 
-    RET               ; Retorna (caso for subrotina), ou continue o fluxo
-
+    AJMP    CORDIC_ALGO
 
 CORDIC_ALGO: 
     MOV DPTR, #E_00   ; Inicializa o DPTR com o endereço da tabela de arctg (E_00)
@@ -132,11 +132,10 @@ CORDIC_LOOP:
     MOV A, #0
     MOVC A, @A+DPTR
     MOV E0, A
-    INC DPTR
-
-    MOV A, #0
+    MOV A, #1
     MOVC A, @A+DPTR
     MOV E1, A
+    INC DPTR
     INC DPTR
 
     ; Prepara R3 com sinal de X, Y, Z (bit mais significativo)
@@ -285,38 +284,38 @@ LONG_JUMP:
 
 CORDIC_END:
     ; Verifica se a resposta precisa ser negada
-    MOV A, #03H     ; Deixa os sinais positivos se R2 = 0
+    MOV A, #3     ; Deixa os sinais positivos se R2 = 0
     ANL A, R2
     JZ THE_END
 
-    MOV A, #02H     ; Pula negacao do cosseno se R2 = 1
+    MOV A, #2     ; Pula negacao do cosseno se R2 = 1
     ANL A, R2
     JZ TWOS_Y
 
 TWOS_X:
     MOV A, X0
     CPL A
-    ADD A, #01H
+    ADD A, #1
     MOV X0, A
 
     MOV A, X1
     CPL A
-    ADDC A, #00H
+    ADDC A, #0
     MOV X1, A
 
 TWOS_Y:
-    MOV A, #01H
+    MOV A, #1
     ANL A, R2
     JZ THE_END
 
     MOV A, Y0
     CPL A
-    ADD A, #01H
+    ADD A, #1
     MOV Y0, A
 
     MOV A, Y1
     CPL A
-    ADDC A, #00H
+    ADDC A, #0
     MOV Y1, A
 
 THE_END:
@@ -329,10 +328,10 @@ THE_END:
 ABS_X:
     CLR C
     MOV A, XTMP0
-    SUBB A, #01H
+    SUBB A, #1
     MOV XTMP0, A
     MOV A, XTMP1
-    SUBB A, #00H
+    SUBB A, #0
     MOV XTMP1, A
     RET
 
@@ -341,10 +340,10 @@ ABS_X:
 ABS_Y:
     CLR C
     MOV A, YTMP0
-    SUBB A, #01H
+    SUBB A, #1
     MOV YTMP0, A
     MOV A, YTMP1
-    SUBB A, #00H
+    SUBB A, #0
     MOV YTMP1, A
     RET
 
@@ -385,12 +384,12 @@ END_SHIFT_XY:
 TWOS_X_SHFTED:
     MOV A, XTMP0
     CPL A 
-    ADD A, #01H
+    ADD A, #1
     MOV XTMP0, A
 
     MOV A, XTMP1
     CPL A 
-    ADDC A, #00H
+    ADDC A, #0
     MOV XTMP1, A 
     RET
 
@@ -399,12 +398,12 @@ TWOS_X_SHFTED:
 TWOS_Y_SHFTED:
     MOV A, YTMP0
     CPL A 
-    ADD A, #01H
+    ADD A, #1
     MOV YTMP0, A
 
     MOV A, YTMP1
     CPL A 
-    ADDC A, #00H
+    ADDC A, #0
     MOV YTMP1, A 
     RET
 
@@ -414,4 +413,6 @@ THE_REAL_END:
     MOV COS1, X1
     MOV SEN0, Y0
     MOV SEN1, Y1
-    END
+
+LOOP_HALT:
+    SJMP LOOP_HALT
