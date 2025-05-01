@@ -1,5 +1,5 @@
-; Implementação do Algoritmo CORDIC para EdSim51
-; Calcula seno e cosseno de um ângulo usando algoritmo CORDIC
+; Implementação do Algoritmo CORDIC
+; Para calcular seno e cosseno de um ângulo qualquer
 ; Entrada: ANGLE0, ANGLE1 (ângulo em formato Q3.13)
 ; Saída: SEN0, SEN1 (resultado do seno), COS0, COS1 (resultado do cosseno)
 
@@ -52,7 +52,7 @@ E_00:
 ORG 0100H
 START:
     ; Inicializa valores de teste 
-    MOV ANGLE0, #8CH    ; Example angle (approximately 45 degrees)
+    MOV ANGLE0, #8CH    ; Exemplo de angulo
     MOV ANGLE1, #09H
     
     ; Inicializa X = 0x136F (X1:X0), Y = 0x0000
@@ -121,7 +121,7 @@ TWOS:
     AJMP CORDIC_ALGO
 
 ADD_PI_DIV_2:
-    ; Add PI/2 to Z
+    ; Adiciona PI/2 to Z
     MOV A, Z0
     ADD A, #PI2_LSB
     MOV Z0, A
@@ -131,21 +131,21 @@ ADD_PI_DIV_2:
     AJMP CORDIC_ALGO
 
 CORDIC_ALGO: 
-    MOV DPTR, #E_00    ; Initialize DPTR with arctangent table
-    MOV R1, #0         ; Iteration counter
-    MOV K, #0          ; Initialize rotation index
+    MOV DPTR, #E_00    ; Inicializa o DPTR com o endereço da tabela de arctg (E_00)
+    MOV R1, #0         ; Contador de iterações
+    MOV K, #0          ; Inicializa o indice de rotacao
 
 CORDIC_LOOP:
-    ; Store K temporarily in R0
+    ; Armazena temporariamente K em R0
     MOV R0, K
 
-    ; Save current X and Y values
+    ; Salva os valores temporarios de X e Y
     MOV XTMP0, X0
     MOV XTMP1, X1
     MOV YTMP0, Y0
     MOV YTMP1, Y1
 
-    ; Load arctangent constants from table
+    ; Carrega constantes arctg(k) da tabela E_00
     MOV A, #0
     MOVC A, @A+DPTR
     MOV E0, A
@@ -155,17 +155,17 @@ CORDIC_LOOP:
     INC DPTR
     INC DPTR
 
-    ; Prepare R3 with sign bits of X, Y, Z
+    ; Prepara R# com sinal de X, Y, Z
     MOV R3, #0
     
-    ; Get X sign bit
+    ; Pega o bit de sinal de X
     MOV A, X1
     ANL A, #80H
     RL A
     ORL A, R3
     MOV R3, A
 
-    ; Get Y sign bit
+    ; Pega o bit de sinal de Y
     MOV A, Y1
     ANL A, #80H
     RL A
@@ -173,7 +173,7 @@ CORDIC_LOOP:
     ORL A, R3
     MOV R3, A
 
-    ; Get Z sign bit
+    ; Pega o bit de sinal de Z
     MOV A, Z1
     ANL A, #80H
     RL A
@@ -182,10 +182,10 @@ CORDIC_LOOP:
     ORL A, R3
     MOV R3, A
 
-    ; Increment R3 for DJNZ usage
+    ; Incremenenta 0 R3
     INC R3
 
-    ; Check if Z is negative
+    ; Verifica se o Z é negativo
     MOV A, #80H
     ANL A, Z1
     JNZ ADD_Z
@@ -209,7 +209,7 @@ ADD_Z:
     ADDC A, Z1
     MOV Z1, A
 
-; Case selection based on X, Y, Z signs in R3
+; Seleciona o caso de acordo com os sinais de X, Y e Z em R3 
 CASE1:
     DJNZ R3, CASE2
     ACALL SHIFT_XY
@@ -281,17 +281,17 @@ ADD_XY:
     ADDC A, Y1
     MOV Y1, A
 
-    ; Increment K and iteration counter
+    ; Incrementa o K no contador de iteracao
     INC K
     INC R1
 
-    ; Check if we've completed 14 iterations
+    ; Verifica se fez as 14 iterações
     MOV A, R1
     CJNE A, #0EH, NEXT_ITER
-    LJMP CORDIC_END    ; Use long jump to reach end
+    LJMP CORDIC_END    ; Usa o long jump para chegar no end
 
 NEXT_ITER:
-    LJMP CORDIC_LOOP   ; Use long jump to continue loop
+    LJMP CORDIC_LOOP   ; usa o long jump para reiniciar o loop
 
 ; Subroutines
 ABS_X:
@@ -369,7 +369,7 @@ TWOS_Y_SHFTED:
     RET
 
 CORDIC_END:
-    ; Check if result needs to be negated based on quadrant
+    ; Verifica se o resultado precisa ser negativo de acordo com o quadrante
     MOV A, #3
     ANL A, R2
     JZ THE_END
@@ -403,13 +403,13 @@ TWOS_Y_FINAL:
     MOV Y1, A
 
 THE_END:
-    ; Store final results
+    ; Salva os resultados finais
     MOV COS0, X0
     MOV COS1, X1
     MOV SEN0, Y0
     MOV SEN1, Y1
 
 LOOP_HALT:
-    SJMP LOOP_HALT     ; Infinite loop to hold results
+    SJMP LOOP_HALT     ; Loop infinito
 
 END
