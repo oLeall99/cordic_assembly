@@ -51,6 +51,27 @@ E_00:
 
 ORG 0100H
 START:
+    ; Limpa todas as variáveis antes de começar
+    MOV COS0, #00H
+    MOV COS1, #00H
+    MOV SEN0, #00H
+    MOV SEN1, #00H
+    MOV XTMP0, #00H
+    MOV XTMP1, #00H
+    MOV YTMP0, #00H
+    MOV YTMP1, #00H
+    MOV X0, #00H
+    MOV X1, #00H
+    MOV Y0, #00H
+    MOV Y1, #00H
+    MOV Z0, #00H
+    MOV Z1, #00H
+    MOV E0, #00H
+    MOV E1, #00H
+    MOV K, #00H
+    MOV R2, #00H
+    MOV R3, #00H
+
     ; Inicializa valores de teste 
     MOV ANGLE0, #8CH    ; Exemplo de angulo
     MOV ANGLE1, #09H
