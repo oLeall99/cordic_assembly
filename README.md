@@ -12,18 +12,18 @@ Exemplo:
 - 0.0 rad → 0x0000  
 - π rad → 0x6488
 
-A saída (SEN0:SEN1 e COS0:COS1) também está em Q3.13, com precisão de até 11 bits (~0.0005 de erro).
+A saída intermediária (COS0:COS1 e SEN0:SEN1) está em formato Q3.13, e é então convertida para decimal para exibição no LCD. Os resultados finais são armazenados em COS_FINAL0:COS_FINAL1 e SEN_FINAL0:SEN_FINAL1.
 
 ## 🧠 Como Funciona
 
 ### Inicialização:
-- X começa com a constante de escala K ≈ 0.6072 → `X = 0x1362`
+- X começa com a constante de escala K ≈ 0.607 → `X = 0x136F`
 - Y = 0
 - Z recebe o valor do ângulo (após possível ajuste de quadrante)
 
 ### Redução de domínio:
-- O algoritmo ajusta o ângulo para o intervalo [0, π/2].
-- Detecta o quadrante do ângulo e inverte os sinais de X e Y se necessário.
+- O algoritmo ajusta o ângulo para o intervalo [-π/2, π/2].
+- Detecta o quadrante do ângulo e aplica as transformações necessárias.
 
 ### Iterações (CORDIC_LOOP):
 - Executa 14 rotações (deslocamentos e somas/subtrações).
@@ -32,24 +32,22 @@ A saída (SEN0:SEN1 e COS0:COS1) também está em Q3.13, com precisão de até 1
 ### Correção de sinal:
 - Com base no quadrante original, aplica complemento de dois em X ou Y se necessário.
 
-### Resultado final:
-- X contém o cosseno.
-- Y contém o seno.
-- Gravados nos registradores COS0:COS1 e SEN0:SEN1.
+### Conversão e exibição:
+- Os resultados em formato Q3.13 são convertidos para valores decimais (multiplicados por 1000)
+- Os valores são formatados como "0.xxx" para exibição no LCD
+- Exibe "COS " seguido do valor do cosseno na primeira linha do LCD
+- Exibe "SEN " seguido do valor do seno na segunda linha do LCD
 
 ## 🧪 Exemplo de Teste
-Para testar o cálculo com ângulo zero, inicialize:
+Para testar o cálculo com o ângulo usado no código (0x098C):
 
-```asm
-MOV ANGLE0, #00H
-MOV ANGLE1, #00H
-```
 Resultado esperado:
-- COS1:COS0 ≈ 0x2000 (cos(0) = 1.0)
-- SEN1:SEN0 ≈ 0x0000 (sen(0) = 0.0)
+[!image]('./assets/resultado.jpg')
+- COS exibido como aproximadamente 0.xxx
+- SEN exibido como aproximadamente 0.xxx
 
 ## 🛠️ Compilação e Simulação
-O código foi escrito para uso no simulador EdSim51
+O código foi escrito para uso no simulador EdSim51 que inclui suporte a LCD.
 
 ## 👷‍♂️ Diagrama de Blocos
 ```mermaid
@@ -82,4 +80,4 @@ flowchart TD
 ```
 
 ## 📚 Referência
-- Horst, J. A. (1990). Assembly Code to Compute Sine and Cosine Using the CORDIC Algorithm. NISTIR 4480. PDF
+- Horst, J. A. (1990). Assembly Code to Compute Sine and Cosine Using the CORDIC Algorithm. NISTIR 4480.
