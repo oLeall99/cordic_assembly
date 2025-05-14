@@ -85,8 +85,9 @@ START:
     MOV R2, #00H
     MOV R3, #00H
 
-    mov ANGLE0, #00h
-    mov ANGLE1, #00h
+    ; Configura o ângulo de teste para 0x098C
+    MOV ANGLE0, #8Ch
+    MOV ANGLE1, #09h
     
     ; Inicializa X = 0x136F (X1:X0), Y = 0x0000
     MOV X0, #6FH        ; X LSB (0x6F)
@@ -442,13 +443,17 @@ THE_END:
     MOV SEN1, Y1
     
     ; Inicializa o LCD e mostra os resultados
-    ACALL CONVERT_COS
-    ACALL CONVERT_SEN
-    ACALL FIX_CONVERSION  ; Adiciona a correção de valores
+    ACALL CALL_CONVERT
     ACALL DISPLAY_RESULTS   ; Chama a rotina para mostrar resultados no LCD
 
 LOOP_HALT:
     SJMP LOOP_HALT     ; Loop infinito
+
+CALL_CONVERT:
+    ACALL CONVERT_COS
+    ACALL CONVERT_SEN
+    RET
+
 
 ; Divisão de Q3.13 por 0x2000 (8192) e conversão para decimal puro (ex: 999)
 ; Entrada: valor Q3.13 em COS_FINAL1 (MSB) e COS_FINAL0 (LSB)
@@ -506,13 +511,6 @@ CONVERT_COS:
     ADDC A, 5Ah
     MOV 5Ah, A
 
-    ; Agora (5Ah,5Bh,4Ah,4Bh) tem o produto (entrada * 1000)
-    ; Vamos dividir por 8192 (0x2000) deslocando 13 bits para a direita
-    ; O resultado será truncado.
-    ; Resultado em 32h (MSB) e 33h (LSB)
-    ; Result_LSB (33h) = ((4Ah >> 5) & 0x07) | (((5Bh & 0x1F) << 3) & 0xF8)
-    ; Result_MSB (32h) = ((5Bh >> 5) & 0x07) | (((5Ah & 0x1F) << 3) & 0xF8)
-
     ; Calcular Result_LSB (33h)
     MOV A, 4Ah      ; A = B1 (4Ah do produto)
     MOV R0, A       ; Salva B1 em R0 temporariamente
@@ -564,7 +562,7 @@ CONVERT_SEN:
 
     ; Copiar para temporários
     MOV 6Ah, SEN_FINAL1     ; MSB
-    MOV 6Bh, 40h     ; LSB
+    MOV 6Bh, SEN_FINAL0     ; LSB
 
     ; Multiplicar por 1000 (0x03E8)
     ; Usar algoritmo de multiplicação manual (16x16 -> 42 bits)
@@ -609,13 +607,6 @@ CONVERT_SEN:
     MOV A, B
     ADDC A, 5Ah
     MOV 5Ah, A
-
-    ; Agora (5Ah,5Bh,4Ah,4Bh) tem o produto (entrada * 1000)
-    ; Vamos dividir por 8192 (0x2000) deslocando 13 bits para a direita
-    ; O resultado será truncado.
-    ; Resultado em 42h (MSB) e 43h (LSB)
-    ; Result_LSB (43h) = ((4Ah >> 5) & 0x07) | (((5Bh & 0x1F) << 3) & 0xF8)
-    ; Result_MSB (42h) = ((5Bh >> 5) & 0x07) | (((5Ah & 0x1F) << 3) & 0xF8)
 
     ; Calcular Result_LSB (43h)
     MOV A, 4Ah      ; A = B1 (4Ah do produto)
@@ -665,9 +656,9 @@ CONVERT_SEN:
 ; Rotina para exibir os resultados no LCD
 DISPLAY_RESULTS:
     ; Incluir código do LCD do exemplo_lcd2.asm
-; --- Mapeamento de Hardware (8051) ---
-RS      EQU     P1.3    ;Reg Select ligado em P1.3
-EN      EQU     P1.2    ;Enable ligado em P1.2
+    ; --- Mapeamento de Hardware (8051) ---
+    RS      EQU     P1.3    ;Reg Select ligado em P1.3
+    EN      EQU     P1.2    ;Enable ligado em P1.2
 
     ; Inicializa o LCD
     ACALL LCD_INIT
@@ -714,86 +705,85 @@ EXIBE_VALOR_COS:
     MOV A, 32h        ; MSB
     CPL A
     ADDC A, #00h
+    ANL A, #7Fh       ; Limpa o bit de sinal
     MOV 32h, A
     
 COS_POSITIVO:
-    ; O valor em 32h:33h já é decimal, onde 03E8h (1000) representa 1.000
-    ; Verificar se o valor é >= 1000 (03E8h)
-    MOV A, 33h
-    CLR C
-    SUBB A, #0E8h     ; Comparar com 0xE8 (LSB de 1000)
-    MOV A, 32h
-    SUBB A, #03h      ; Comparar com 0x03 (MSB de 1000)
-    JC EXIBE_COS_ZERO ; Se menor que 1000, exibir "0."
-    
-    ; Caso seja 1000 ou maior, exibir "1."
-    MOV A, #'1'
-    SJMP EXIBE_COS_PONTO
-    
-EXIBE_COS_ZERO:
+    ; Sempre mostramos o valor como 0.xxx
     MOV A, #'0'
-    
-EXIBE_COS_PONTO:
     ACALL SEND_CHARACTER
     
     ; Exibir ponto decimal
     MOV A, #'.'
     ACALL SEND_CHARACTER
     
-    ; Agora vamos corrigir a exibição dos dígitos decimais
-    ; Usaremos uma abordagem diferente para extrair os dígitos
+    ; Tratamento correto para 16 bits (MSB:LSB = 32h:33h)
+    ; Extrair dígitos para formato 0.xxx
     
-    ; Para o primeiro dígito - pegar o byte baixo e extrair o valor decimal
-    MOV A, 33h       ; O byte baixo contém o valor fracionário
+    ; Criamos um valor composto em R6:R7
+    MOV R6, 32h    ; MSB em R6
+    MOV R7, 33h    ; LSB em R7
     
-    ; Para um valor próximo a 1000 (03E8h), queremos mostrar 999
-    ; Para 1FFE (que deve mostrar 0.999) - após conversão correta:
-    MOV R6, #9       ; Valor fixo para o primeiro dígito (decimal)
-    MOV R7, #9       ; Valor fixo para o segundo dígito (decimal)
-    MOV R5, #9       ; Valor fixo para o terceiro dígito (decimal)
+    ; Divisão por 100 - usando algoritmo de divisão para 16 bits
+    ; Resultado em R3 (centenas), R6:R7 terá o resto
+    MOV R3, #0     ; Inicializa contador de centenas
     
-    ; Se o valor for diferente, precisamos calcular os dígitos
-    ; Verificar se valor é padrão 1FFE (que deve mostrar 0.999)
-    MOV A, 33h
-    XRL A, #0E7h      ; Comparar com o valor esperado (~999 decimal)
-    JNZ CALCULAR_DIGITOS
-    MOV A, 32h
-    XRL A, #03h       ; Comparar com o valor esperado
-    JNZ CALCULAR_DIGITOS
+DIV_COS_100:
+    ; Verifica se o valor é >= 100
+    CLR C
+    MOV A, R7      ; LSB
+    SUBB A, #100
+    MOV R0, A      ; Guarda LSB temporário
+    MOV A, R6      ; MSB
+    SUBB A, #0     ; Subtrai carry
+    JC FIM_DIV_COS_100  ; Se < 100, terminou
     
-    ; Se chegamos aqui, é o valor padrão, exibir 999
-    SJMP EXIBIR_DIGITOS_COS
+    ; Valor >= 100, subtrai 100 e incrementa contador
+    MOV R6, A      ; Atualiza MSB
+    MOV A, R0
+    MOV R7, A     ; Atualiza LSB
+    INC R3         ; Incrementa contador de centenas
+    SJMP DIV_COS_100
     
-CALCULAR_DIGITOS:
-    ; Para outros valores, calcular os dígitos corretamente
-    ; Fator de mapeamento: 1000 = 1.000, então 1 = 0.001
-    ; Para o valor convertido em 32h:33h:
+FIM_DIV_COS_100:
+    ; R3 tem as centenas, R6:R7 tem o resto
+    ; Agora dividimos o resto por 10 para pegar as dezenas
+    MOV R4, #0     ; Inicializa contador de dezenas
     
-    ; Primeiro dígito (décimos) - dividir por 100
-    MOV A, 33h
-    MOV B, #100
-    DIV AB           ; A = primeiro dígito, B = resto
-    MOV R6, A
+DIV_COS_10:
+    ; Verifica se o valor é >= 10
+    CLR C
+    MOV A, R7      ; LSB
+    SUBB A, #10
+    MOV R0, A      ; Guarda LSB temporário
+    MOV A, R6      ; MSB
+    SUBB A, #0     ; Subtrai carry
+    JC FIM_DIV_COS_10  ; Se < 10, terminou
     
-    ; Segundo dígito (centésimos) - dividir o resto por 10
-    MOV A, B
-    MOV B, #10
-    DIV AB           ; A = segundo dígito, B = terceiro dígito
-    MOV R7, A
-    MOV R5, B
+    ; Valor >= 10, subtrai 10 e incrementa contador
+    MOV R6, A      ; Atualiza MSB
+    MOV A, R0
+    MOV R7, A     ; Atualiza LSB
+    INC R4         ; Incrementa contador de dezenas
+    SJMP DIV_COS_10
     
-EXIBIR_DIGITOS_COS:
-    ; Exibir os três dígitos convertidos para ASCII
-    MOV A, R6
-    ADD A, #30h       ; Converter para ASCII
+FIM_DIV_COS_10:
+    ; R4 tem as dezenas, R7 tem as unidades (R6 deve ser zero)
+    ; Exibe os 3 dígitos
+    
+    ; Exibe centenas
+    MOV A, R3
+    ADD A, #'0'    ; Converte para ASCII
     ACALL SEND_CHARACTER
     
+    ; Exibe dezenas
+    MOV A, R4
+    ADD A, #'0'    ; Converte para ASCII
+    ACALL SEND_CHARACTER
+    
+    ; Exibe unidades
     MOV A, R7
-    ADD A, #30h       ; Converter para ASCII
-    ACALL SEND_CHARACTER
-    
-    MOV A, R5
-    ADD A, #30h       ; Converter para ASCII
+    ADD A, #'0'    ; Converte para ASCII
     ACALL SEND_CHARACTER
     
     RET
@@ -816,102 +806,87 @@ EXIBE_VALOR_SEN:
     MOV A, 42h        ; MSB
     CPL A
     ADDC A, #00h
+    ANL A, #7Fh       ; Limpa o bit de sinal
     MOV 42h, A
     
 SEN_POSITIVO:
-    ; O valor em 42h:43h já é decimal, onde 03E8h (1000) representa 1.000
-    ; Verificar se o valor é >= 1000 (03E8h)
-    MOV A, 43h
-    CLR C
-    SUBB A, #0E8h     ; Comparar com 0xE8 (LSB de 1000)
-    MOV A, 42h
-    SUBB A, #03h      ; Comparar com 0x03 (MSB de 1000)
-    JC EXIBE_SEN_ZERO ; Se menor que 1000, exibir "0."
-    
-    ; Caso seja 1000 ou maior, exibir "1."
-    MOV A, #'1'
-    SJMP EXIBE_SEN_PONTO
-    
-EXIBE_SEN_ZERO:
+    ; Sempre mostramos o valor como 0.xxx
     MOV A, #'0'
-    
-EXIBE_SEN_PONTO:
     ACALL SEND_CHARACTER
     
     ; Exibir ponto decimal
     MOV A, #'.'
     ACALL SEND_CHARACTER
     
-    ; Usando a mesma lógica para o seno
-    ; Para o valor próximo a zero (0.000), verificamos o byte baixo
-    MOV A, 43h
+    ; Tratamento correto para 16 bits (MSB:LSB = 42h:43h)
+    ; Extrair dígitos para formato 0.xxx
     
-    ; Verificar se valor é um dos casos especiais conhecidos
-    MOV A, 43h
-    XRL A, #0E7h      ; Comparar com o valor esperado (~999 decimal)
-    JNZ CALCULAR_DIGITOS_SEN
-    MOV A, 42h
-    XRL A, #03h       ; Comparar com o valor esperado
-    JNZ CALCULAR_DIGITOS_SEN
+    ; Criamos um valor composto em R6:R7
+    MOV R6, 42h    ; MSB em R6
+    MOV R7, 43h    ; LSB em R7
     
-    ; Se chegamos aqui, é o valor padrão para 0.999
-    MOV R6, #9       ; Valor fixo para o primeiro dígito (decimal)
-    MOV R7, #9       ; Valor fixo para o segundo dígito (decimal)
-    MOV R5, #9       ; Valor fixo para o terceiro dígito (decimal)
-    SJMP EXIBIR_DIGITOS_SEN
+    ; Divisão por 100 - usando algoritmo de divisão para 16 bits
+    ; Resultado em R3 (centenas), R6:R7 terá o resto
+    MOV R3, #0     ; Inicializa contador de centenas
     
-CALCULAR_DIGITOS_SEN:
-    ; Para outros valores, calcular os dígitos corretamente
-    ; Fator de mapeamento: 1000 = 1.000, então 1 = 0.001
+DIV_SEN_100:
+    ; Verifica se o valor é >= 100
+    CLR C
+    MOV A, R7      ; LSB
+    SUBB A, #100
+    MOV R0, A      ; Guarda LSB temporário
+    MOV A, R6      ; MSB
+    SUBB A, #0     ; Subtrai carry
+    JC FIM_DIV_SEN_100  ; Se < 100, terminou
     
-    ; Primeiro dígito (décimos) - dividir por 100
-    MOV A, 43h
-    MOV B, #100
-    DIV AB           ; A = primeiro dígito, B = resto
-    MOV R6, A
+    ; Valor >= 100, subtrai 100 e incrementa contador
+    MOV R6, A      ; Atualiza MSB
+    MOV A, R0
+    MOV R7, A     ; Atualiza LSB
+    INC R3         ; Incrementa contador de centenas
+    SJMP DIV_SEN_100
     
-    ; Segundo dígito (centésimos) - dividir o resto por 10
-    MOV A, B
-    MOV B, #10
-    DIV AB           ; A = segundo dígito, B = terceiro dígito
-    MOV R7, A
-    MOV R5, B
+FIM_DIV_SEN_100:
+    ; R3 tem as centenas, R6:R7 tem o resto
+    ; Agora dividimos o resto por 10 para pegar as dezenas
+    MOV R4, #0     ; Inicializa contador de dezenas
     
-EXIBIR_DIGITOS_SEN:
-    ; Exibir os três dígitos convertidos para ASCII
-    MOV A, R6
-    ADD A, #30h       ; Converter para ASCII
+DIV_SEN_10:
+    ; Verifica se o valor é >= 10
+    CLR C
+    MOV A, R7      ; LSB
+    SUBB A, #10
+    MOV R0, A      ; Guarda LSB temporário
+    MOV A, R6      ; MSB
+    SUBB A, #0     ; Subtrai carry
+    JC FIM_DIV_SEN_10  ; Se < 10, terminou
+    
+    ; Valor >= 10, subtrai 10 e incrementa contador
+    MOV R6, A      ; Atualiza MSB
+    MOV A, R0
+    MOV R7, A     ; Atualiza LSB
+    INC R4         ; Incrementa contador de dezenas
+    SJMP DIV_SEN_10
+    
+FIM_DIV_SEN_10:
+    ; R4 tem as dezenas, R7 tem as unidades (R6 deve ser zero)
+    ; Exibe os 3 dígitos
+    
+    ; Exibe centenas
+    MOV A, R3
+    ADD A, #'0'    ; Converte para ASCII
     ACALL SEND_CHARACTER
     
+    ; Exibe dezenas
+    MOV A, R4
+    ADD A, #'0'    ; Converte para ASCII
+    ACALL SEND_CHARACTER
+    
+    ; Exibe unidades
     MOV A, R7
-    ADD A, #30h       ; Converter para ASCII
+    ADD A, #'0'    ; Converte para ASCII
     ACALL SEND_CHARACTER
     
-    MOV A, R5
-    ADD A, #30h       ; Converter para ASCII
-    ACALL SEND_CHARACTER
-    
-    RET
-
-; Rotina para corrigir a conversão e garantir valores corretos
-; Esta rotina deve ser chamada antes de DISPLAY_RESULTS
-FIX_CONVERSION:
-    ; Corrige o valor do cosseno para COS_FINAL1:COS_FINAL0
-    ; Verificamos se é o caso especial do ângulo 1FFE (deve produzir 0.999)
-    MOV A, ANGLE0
-    XRL A, #0FEh
-    JNZ END_FIX
-    MOV A, ANGLE1
-    XRL A, #1Fh
-    JNZ END_FIX
-    
-    ; Se chegamos aqui, é o ângulo 1FFE - configurar valores corretos
-    MOV 32h, #03h     ; MSB para 0.999 (03E7h)
-    MOV 33h, #0E7h    ; LSB para 0.999 (03E7h)
-    MOV 42h, #00h     ; MSB para 0.000 (valor aproximado para ângulo 1FFE)
-    MOV 43h, #00h     ; LSB para 0.000
-    
-END_FIX:
     RET
 
 ; --- Rotinas do LCD (baseadas no exemplo_lcd2.asm) ---
