@@ -51,5 +51,35 @@ Resultado esperado:
 ## 🛠️ Compilação e Simulação
 O código foi escrito para uso no simulador EdSim51
 
+## 👷‍♂️ Diagrama de Blocos
+```mermaid
+flowchart TD
+    START(["Início"]) --> INIT["Inicialização das variáveis"]
+    INIT --> ANGLE_SETUP["Configura ângulo de entrada em formato Q3.13"]
+    ANGLE_SETUP --> NORM_ANGLE["Normaliza o ângulo para -PI/2 a PI/2"]
+    NORM_ANGLE --> QUAD_CHECK{"Verifica quadrante"}
+    QUAD_CHECK -- Quadrante 1 --> CORDIC_INIT["Inicializa algoritmo CORDIC X=0.607, Y=0"]
+    QUAD_CHECK -- Quadrante 2 --> TWO_COMP["Complemento de 2 do ângulo"]
+    QUAD_CHECK -- Quadrante 3 --> ADD_PI_2["Adiciona PI/2 ao ângulo"]
+    QUAD_CHECK -- Quadrante 4 --> TWO_COMP_2["Complemento de 2 do ângulo"]
+    TWO_COMP --> CORDIC_INIT
+    ADD_PI_2 --> CORDIC_INIT
+    TWO_COMP_2 --> CORDIC_INIT
+    CORDIC_INIT --> CORDIC_LOOP["Loop CORDIC 14 iterações"]
+    CORDIC_LOOP --> SIGN_CHECK{"Verifica sinal de Z"}
+    SIGN_CHECK -- Z &lt; 0 --> ADD_E["Z = Z + arctan2^-i"]
+    SIGN_CHECK -- Z ≥ 0 --> SUB_E["Z = Z - arctan2^-i"]
+    ADD_E --> SHIFT_XY["Shift das variáveis X e Y"]
+    SUB_E --> SHIFT_XY
+    SHIFT_XY --> CASE_HANDLE["Manipulação baseada nos sinais de X, Y, e Z"]
+    CASE_HANDLE --> ADD_XY["Adiciona valores deslocados"]
+    ADD_XY --> ITER_CHECK{"Completou 14 iterações?"}
+    ITER_CHECK -- Não --> CORDIC_LOOP
+    ITER_CHECK -- Sim --> QUAD_ADJ["Ajuste baseado no quadrante"]
+    QUAD_ADJ --> CONVERT["Converte resultado de Q3.13 para decimal"]
+    CONVERT --> DISPLAY["Exibe resultados no LCD"]
+    DISPLAY --> END(["Fim"])
+```
+
 ## 📚 Referência
 - Horst, J. A. (1990). Assembly Code to Compute Sine and Cosine Using the CORDIC Algorithm. NISTIR 4480. PDF
