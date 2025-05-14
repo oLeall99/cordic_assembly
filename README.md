@@ -42,9 +42,10 @@ A saída intermediária (COS0:COS1 e SEN0:SEN1) está em formato Q3.13, e é ent
 Para testar o cálculo com o ângulo usado no código (0x098C):
 
 Resultado esperado:
-[!image]('./assets/resultado.jpg')
-- COS exibido como aproximadamente 0.xxx
-- SEN exibido como aproximadamente 0.xxx
+
+![image](/assets/resultado.jpg)
+- COS exibido como aproximadamente 0.955
+- SEN exibido como aproximadamente 0.293
 
 ## 🛠️ Compilação e Simulação
 O código foi escrito para uso no simulador EdSim51 que inclui suporte a LCD.
